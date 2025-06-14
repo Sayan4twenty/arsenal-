@@ -1,0 +1,110 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <SFML/Graphics.hpp> // Assuming SFML is used for graphics and input handling
+
+class PlayerController : public sf::Transformable {
+public:
+    float walkspeed = 5.f;
+    float runspeed = 10.f;
+    float Airwalkspeed = 3.f;
+    float JumpImpulse = 10.f;
+    sf::Vector2f moveInput;
+    TouchingDirection direction;
+    Damageable* damageable;
+    sf::Vector2f knockBackVelocity;
+
+    float CurrentMoveSpeed() {
+        if (CanMove()) {
+            if (IsMoving() && !direction.IsOnWall) {
+                if (direction.IsGrounded) {
+                    return IsRunning() ? runspeed : walkspeed;
+                } else {
+                    return Airwalkspeed;
+                }
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+
+private:
+    bool _isMoving = false;
+
+public:
+    bool IsMoving() const {
+        return _isMoving;
+    }
+
+    void SetIsMoving(bool value) {
+        _isMoving = value;
+        animator.SetBool(AnimationStrings::IsMoving, value);
+    }
+
+private:
+    bool _isRunning = false;
+
+public:
+    bool IsRunning() const {
+        return _isRunning;
+    }
+
+    void SetIsRunning(bool value) {
+        _isRunning = value;
+        animator.SetBool(AnimationStrings::IsRunningPressed, value);
+    }
+
+    bool _isFacingRight = true;
+
+    bool IsFacingRight() const {
+        return _isFacingRight;
+    }
+
+    void SetIsFacingRight(bool value) {
+        if (_isFacingRight != value) {
+            this->scale.x *= -1;
+        }
+        _isFacingRight = value;
+    }
+
+    bool CanMove() const {
+        return animator.GetBool(AnimationStrings::canMove);
+    }
+
+    bool IsAlive() const {
+        return animator.GetBool(AnimationStrings::IsAlive);
+    }
+
+    sf::Vector2f rb; // Assuming this is a representation of Rigidbody2D
+    Animator animator;
+
+    void Awake() {
+        // Initialize components
+        damageable = GetComponent<Damageable>();
+        direction = GetComponent<TouchingDirection>();
+    }
+
+    void FixedUpdate() {
+        if (!damageable->LockVelocity) {
+            rb.x = moveInput.x * CurrentMoveSpeed();
+            animator.SetFloat(AnimationStrings::Yvelocity, rb.y);
+        } else {
+            rb += knockBackVelocity * deltaTime; // Assuming deltaTime is defined
+        }
+    }
+
+    void OnMove(const sf::Event& event) {
+        // Assuming event contains the input data
+        moveInput = event.moveInput; // Replace with actual input handling
+
+        if (IsAlive()) {
+            SetIsMoving(moveInput != sf::Vector2f(0, 0));
+            SetFacingDirection(moveInput);
+        } else {
+            SetIsMoving(false);
+        }
+    }
+};
+
